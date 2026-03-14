@@ -1,8 +1,8 @@
 from flask import Flask, request, render_template_string
 import subprocess
-import whisper
 import os
 import tempfile
+from faster_whisper import WhisperModel
 
 app = Flask(__name__)
 
@@ -63,9 +63,10 @@ def transcribe():
             audio_path = os.path.join(tmpdir, 'audio.%(ext)s')
             subprocess.run(['yt-dlp', '-x', '--audio-format', 'mp3', '-o', audio_path, url], check=True)
             mp3_path = os.path.join(tmpdir, 'audio.mp3')
-            model = whisper.load_model('base')
-            result = model.transcribe(mp3_path)
-            return {'transcript': result['text']}
+            model = WhisperModel('base', device='cpu', compute_type='int8')
+            segments, _ = model.transcribe(mp3_path)
+            transcript = ' '.join([s.text for s in segments])
+            return {'transcript': transcript}
     except Exception as e:
         return {'error': str(e)}
 
