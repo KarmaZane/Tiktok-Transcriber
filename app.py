@@ -3,6 +3,7 @@ import subprocess
 import os
 import tempfile
 from faster_whisper import WhisperModel
+import imageio_ffmpeg
 
 app = Flask(__name__)
 
@@ -59,17 +60,18 @@ def transcribe():
     if not url:
         return {'error': 'No URL provided'}
     try:
+        # This grabs the absolute, guaranteed path to ffmpeg
+        ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
+        
         with tempfile.TemporaryDirectory() as tmpdir:
             audio_path = os.path.join(tmpdir, 'audio.%(ext)s')
             
-            # This version uses a "User-Agent" to hide from TikTok's bot sensors
-            # and explicitly tells it where to find ffmpeg
             subprocess.run([
                 'yt-dlp', 
-                '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
                 '-x', 
                 '--audio-format', 'mp3', 
-                '--ffmpeg-location', '/usr/bin/ffmpeg',
+                '--ffmpeg-location', ffmpeg_path,
                 '-o', audio_path, 
                 url
             ], check=True)
