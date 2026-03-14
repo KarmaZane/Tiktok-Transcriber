@@ -29,7 +29,7 @@ HTML = """
     <script>
         async function transcribe() {
             const url = document.getElementById('url').value;
-            document.getElementById('status').textContent = 'Working on it... this may take a few minutes.';
+            document.getElementById('status').textContent = 'Working on it... this may take a minute.';
             document.getElementById('output').textContent = '';
             const res = await fetch('/transcribe', {
                 method: 'POST',
@@ -61,11 +61,25 @@ def transcribe():
     try:
         with tempfile.TemporaryDirectory() as tmpdir:
             audio_path = os.path.join(tmpdir, 'audio.%(ext)s')
-            subprocess.run(['yt-dlp', '-x', '--audio-format', 'mp3', '-o', audio_path, url], check=True)
+            
+            # This version uses a "User-Agent" to hide from TikTok's bot sensors
+            # and explicitly tells it where to find ffmpeg
+            subprocess.run([
+                'yt-dlp', 
+                '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                '-x', 
+                '--audio-format', 'mp3', 
+                '--ffmpeg-location', '/usr/bin/ffmpeg',
+                '-o', audio_path, 
+                url
+            ], check=True)
+            
             mp3_path = os.path.join(tmpdir, 'audio.mp3')
+            
             model = WhisperModel('base', device='cpu', compute_type='int8')
             segments, _ = model.transcribe(mp3_path)
             transcript = ' '.join([s.text for s in segments])
+            
             return {'transcript': transcript}
     except Exception as e:
         return {'error': str(e)}
