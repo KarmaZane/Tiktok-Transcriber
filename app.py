@@ -2,6 +2,7 @@ from flask import Flask, request, render_template_string
 import subprocess
 import os
 import tempfile
+import urllib.request
 from faster_whisper import WhisperModel
 import imageio_ffmpeg
 
@@ -9,6 +10,20 @@ app = Flask(__name__)
 
 # Load model ONCE at startup with 4 CPU threads
 model = WhisperModel('tiny', device='cpu', compute_type='int8', cpu_threads=4)
+
+
+def resolve_short_url(url):
+    """Follow redirects on short TikTok URLs like tiktok.com/t/ABC123/"""
+    try:
+        req = urllib.request.Request(
+            url,
+            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+        )
+        resp = urllib.request.urlopen(req, timeout=10)
+        return resp.url
+    except Exception:
+        return url
+
 
 HTML = """
 <!DOCTYPE html>
@@ -497,6 +512,10 @@ def transcribe():
         return {'error': 'No URL provided'}
 
     try:
+        # Resolve short TikTok URLs (tiktok.com/t/ABC123/) to full URLs
+        if '/t/' in url:
+            url = resolve_short_url(url)
+
         ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
 
         with tempfile.TemporaryDirectory() as tmpdir:
