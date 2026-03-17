@@ -7,6 +7,9 @@ import imageio_ffmpeg
 
 app = Flask(__name__)
 
+# Load model ONCE at startup with 4 CPU threads
+model = WhisperModel('tiny', device='cpu', compute_type='int8', cpu_threads=4)
+
 HTML = """
 <!DOCTYPE html>
 <html lang="en">
@@ -503,16 +506,21 @@ def transcribe():
                 'yt-dlp',
                 '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
                 '-x',
-                '--audio-format', 'mp3',
+                '--audio-format', 'wav',
+                '--audio-quality', '5',
                 '--ffmpeg-location', ffmpeg_path,
                 '-o', audio_path,
                 url
             ], check=True)
 
-            mp3_path = os.path.join(tmpdir, 'audio.mp3')
+            wav_path = os.path.join(tmpdir, 'audio.wav')
 
-            model = WhisperModel('base', device='cpu', compute_type='int8')
-            segments, _ = model.transcribe(mp3_path)
+            segments, _ = model.transcribe(
+                wav_path,
+                beam_size=1,
+                vad_filter=True,
+                condition_on_previous_text=False
+            )
             transcript = ' '.join([s.text for s in segments])
 
             return {'transcript': transcript}
